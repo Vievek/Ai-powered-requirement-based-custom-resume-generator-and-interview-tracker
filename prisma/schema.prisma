@@ -1,31 +1,230 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
+// schema.prisma
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
-  posts Post[]
+  id                String    @id @default(cuid())
+  name              String?
+  email             String    @unique
+  emailVerified     DateTime? @map("email_verified")
+  image             String?
+  profileCompleted  Boolean   @default(false) @map("profile_completed")
+  careerGoal        String?   @map("career_goal")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  accounts          Account[]
+  sessions          Session[]
+  profile           UserProfile?
+  resumeProjects    ResumeProject[]
+  jobApplications   JobApplication[]
+  careerSuggestions CareerSuggestion[]
+  branches          Branch[] @relation("BranchCreator")
+  collaborations    ProjectCollaborator[]
+  commits           ResumeCommit[]
+  sharedProjects    ProjectCollaborator[] @relation("Sharer")
+
+  @@map("users")
 }
 
-model Post {
-  id        Int     @id @default(autoincrement())
-  title     String
-  content   String?
-  published Boolean @default(false)
-  authorId  Int
-  author    User    @relation(fields: [authorId], references: [id])
+model UserProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique @map("user_id")
+  education      Json?    // [{degree: "", institution: "", startYear: "", endYear: ""}]
+  experience     Json?    // [{title: "", company: "", start: "", end: "", description: ""}]
+  skills         String[] // ["JavaScript", "React", "Python"]
+  projects       Json?    // [{name: "", description: "", techStack: []}]
+  certifications Json?    // [{name: "", issuer: "", date: ""}]
+  softSkills     String[] @map("soft_skills")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model ResumeProject {
+  id          String     @id @default(cuid())
+  name        String     @map("project_name")
+  description String?
+  userId      String     @map("user_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branches    Branch[]
+  applications JobApplication[]
+  collaborators ProjectCollaborator[]
+
+  @@map("resume_projects")
+}
+
+model Branch {
+  id                   String         @id @default(cuid())
+  name                 String
+  projectId            String         @map("project_id")
+  parentBranchId       String?        @map("parent_branch_id")
+  createdFromCommitId  String?        @map("created_from_commit_id")
+  createdById          String         @map("created_by_id")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  project              ResumeProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentBranch         Branch?        @relation("BranchParent", fields: [parentBranchId], references: [id])
+  childBranches        Branch[]       @relation("BranchParent")
+  createdFromCommit    ResumeCommit?  @relation(fields: [createdFromCommitId], references: [id])
+  creator              User           @relation("BranchCreator", fields: [createdById], references: [id])
+  versions             ResumeVersion[]
+
+  @@unique([projectId, name])
+  @@map("branches")
+}
+
+model ResumeVersion {
+  id         String   @id @default(cuid())
+  branchId   String   @map("branch_id")
+  content    Json     // Structured ATS-friendly resume data
+  templateId String   @map("template_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  branch     Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  template   ResumeTemplate @relation(fields: [templateId], references: [id])
+  commit     ResumeCommit?
+  applications JobApplication[]
+
+  @@map("resume_versions")
+}
+
+model ResumeCommit {
+  id         String   @id @default(cuid())
+  versionId  String   @unique @map("version_id")
+  message    String
+  changes    String?
+  authorId   String   @map("author_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  version    ResumeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdBranches Branch[]
+
+  @@map("resume_commits")
+}
+
+model ResumeTemplate {
+  id             String   @id @default(cuid())
+  name           String
+  colorTheme     String   @map("color_theme")
+  layoutDetails  Json     @map("layout_details") // ATS-compliant structure
+  isAtsCompliant Boolean  @default(true) @map("is_ats_compliant")
+  versions       ResumeVersion[]
+
+  @@map("resume_templates")
+}
+
+model ProjectCollaborator {
+  id           String         @id @default(cuid())
+  projectId    String         @map("project_id")
+  userId       String         @map("user_id")
+  accessLevel  AccessLevel    @map("access_level") @default(VIEWER)
+  sharedById   String         @map("shared_by_id")
+  sharedAt     DateTime       @default(now()) @map("shared_at")
+  project      ResumeProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sharedBy     User           @relation("Sharer", fields: [sharedById], references: [id])
+
+  @@unique([projectId, userId])
+  @@map("project_collaborators")
+}
+
+model JobApplication {
+  id                       String    @id @default(cuid())
+  userId                   String    @map("user_id")
+  projectId                String?   @map("project_id")
+  versionId                String?   @map("version_id")
+  companyName              String    @map("company_name")
+  jobTitle                 String    @map("job_title")
+  jobDescription           String?   @map("job_description") @db.Text
+  jobDescriptionEmbedding  String?   @map("job_description_embedding") // For Gemini embeddings
+  status                   ApplicationStatus @default(DRAFT)
+  appliedDate              DateTime? @map("applied_date")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+  user                     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project                  ResumeProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  version                  ResumeVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+
+  @@map("job_applications")
+}
+
+model CareerSuggestion {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  type           SuggestionType
+  description    String
+  reasoning      String?   @db.Text
+  resourceLink   String?   @map("resource_link")
+  status         SuggestionStatus @default(PENDING)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("career_suggestions")
+}
+
+enum AccessLevel {
+  VIEWER
+  COMMENTER
+  EDITOR
+}
+
+enum ApplicationStatus {
+  DRAFT
+  APPLIED
+  INTERVIEWING
+  REJECTED
+  OFFER
+}
+
+enum SuggestionType {
+  SKILL
+  COURSE
+  PROJECT
+  CERTIFICATION
+}
+
+enum SuggestionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
 }
