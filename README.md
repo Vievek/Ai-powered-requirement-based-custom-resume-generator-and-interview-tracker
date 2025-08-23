@@ -61,7 +61,7 @@ A complete, responsive SaaS web application for AI-powered, ATS-optimized resume
    Fill in your environment variables:
 
    - `DATABASE_URL` - PostgreSQL connection string
-   - `GOOGLE_GEMINI_API_KEY` - Your Gemini API key
+   - `GOOGLE_AI_API_KEY` - Your Gemini API key
    - `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET` - OAuth credentials
    - `NEXTAUTH_SECRET` - Random secret for NextAuth
 

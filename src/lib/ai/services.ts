@@ -15,11 +15,11 @@ interface UserProfile {
   softSkills?: string[];
 }
 
-if (!process.env.GOOGLE_GEMINI_API_KEY) {
-  throw new Error("GOOGLE_GEMINI_API_KEY is not set");
+if (!process.env.NEXT_PUBLIC_GOOGLE_AI_API_KEY) {
+  throw new Error("NEXT_PUBLIC_GOOGLE_AI_API_KEY is not set ");
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_AI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
 export interface ResumeContentJSON {
