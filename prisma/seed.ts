@@ -1,113 +1,116 @@
-import { PrismaClient } from "../src/generated/prisma";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Start seeding...");
-
   // Create default ATS-compliant resume templates
   const templates = [
     {
-      id: "template-modern-ats",
-      name: "Modern ATS",
-      colorTheme: "blue",
+      name: "Modern Professional",
+      colorTheme: "#2563eb",
       layoutDetails: {
+        type: "single-column",
         sections: [
-          { id: "header", order: 1, required: true },
-          { id: "summary", order: 2, required: false },
-          { id: "experience", order: 3, required: true },
-          { id: "education", order: 4, required: true },
-          { id: "skills", order: 5, required: true },
-          { id: "projects", order: 6, required: false },
-          { id: "certifications", order: 7, required: false },
+          "header",
+          "summary",
+          "experience",
+          "education",
+          "skills",
+          "projects",
         ],
         fonts: {
-          heading: "Arial, sans-serif",
-          body: "Arial, sans-serif",
+          primary: "Inter",
+          headings: "Inter",
+          body: "Inter",
         },
         spacing: {
-          margin: "0.75in",
-          sectionGap: "16px",
-          itemGap: "8px",
+          section: 16,
+          item: 8,
+          line: 1.5,
         },
-        formatting: {
-          headerSize: "18px",
-          bodySize: "11px",
-          lineHeight: "1.4",
-          colors: {
-            primary: "#2563eb",
-            secondary: "#64748b",
-            text: "#1e293b",
-          },
+        colors: {
+          primary: "#2563eb",
+          text: "#1f2937",
+          accent: "#6b7280",
         },
       },
       isAtsCompliant: true,
     },
     {
-      id: "template-classic-ats",
-      name: "Classic ATS",
-      colorTheme: "black",
+      name: "Classic Executive",
+      colorTheme: "#000000",
       layoutDetails: {
-        sections: [
-          { id: "header", order: 1, required: true },
-          { id: "objective", order: 2, required: false },
-          { id: "experience", order: 3, required: true },
-          { id: "education", order: 4, required: true },
-          { id: "skills", order: 5, required: true },
-          { id: "certifications", order: 6, required: false },
-        ],
+        type: "single-column",
+        sections: ["header", "summary", "experience", "education", "skills"],
         fonts: {
-          heading: "Times New Roman, serif",
-          body: "Times New Roman, serif",
+          primary: "Georgia",
+          headings: "Georgia",
+          body: "Georgia",
         },
         spacing: {
-          margin: "1in",
-          sectionGap: "12px",
-          itemGap: "6px",
+          section: 18,
+          item: 10,
+          line: 1.6,
         },
-        formatting: {
-          headerSize: "16px",
-          bodySize: "11px",
-          lineHeight: "1.3",
-          colors: {
-            primary: "#000000",
-            secondary: "#333333",
-            text: "#000000",
-          },
+        colors: {
+          primary: "#000000",
+          text: "#1f2937",
+          accent: "#4b5563",
         },
       },
       isAtsCompliant: true,
     },
     {
-      id: "template-minimal-ats",
-      name: "Minimal ATS",
-      colorTheme: "gray",
+      name: "Minimal Clean",
+      colorTheme: "#6b7280",
       layoutDetails: {
-        sections: [
-          { id: "header", order: 1, required: true },
-          { id: "summary", order: 2, required: false },
-          { id: "experience", order: 3, required: true },
-          { id: "education", order: 4, required: true },
-          { id: "skills", order: 5, required: true },
-        ],
+        type: "single-column",
+        sections: ["header", "experience", "education", "skills", "projects"],
         fonts: {
-          heading: "Calibri, sans-serif",
-          body: "Calibri, sans-serif",
+          primary: "Arial",
+          headings: "Arial",
+          body: "Arial",
         },
         spacing: {
-          margin: "0.75in",
-          sectionGap: "20px",
-          itemGap: "10px",
+          section: 20,
+          item: 12,
+          line: 1.4,
         },
-        formatting: {
-          headerSize: "16px",
-          bodySize: "11px",
-          lineHeight: "1.5",
-          colors: {
-            primary: "#374151",
-            secondary: "#6b7280",
-            text: "#111827",
-          },
+        colors: {
+          primary: "#6b7280",
+          text: "#111827",
+          accent: "#9ca3af",
+        },
+      },
+      isAtsCompliant: true,
+    },
+    {
+      name: "Tech Professional",
+      colorTheme: "#059669",
+      layoutDetails: {
+        type: "single-column",
+        sections: [
+          "header",
+          "summary",
+          "experience",
+          "projects",
+          "skills",
+          "education",
+        ],
+        fonts: {
+          primary: "Helvetica",
+          headings: "Helvetica",
+          body: "Helvetica",
+        },
+        spacing: {
+          section: 16,
+          item: 8,
+          line: 1.5,
+        },
+        colors: {
+          primary: "#059669",
+          text: "#1f2937",
+          accent: "#10b981",
         },
       },
       isAtsCompliant: true,
@@ -116,13 +119,19 @@ async function main() {
 
   for (const template of templates) {
     await prisma.resumeTemplate.upsert({
-      where: { id: template.id },
+      where: { name: template.name },
       update: template,
       create: template,
     });
   }
 
-  console.log("Seeding finished.");
+  console.log("✅ Resume templates seeded successfully");
+
+  // Create sample career suggestions types for reference
+  const suggestionTypes = ["SKILL", "COURSE", "PROJECT", "CERTIFICATION"];
+  console.log("📚 Available suggestion types:", suggestionTypes);
+
+  console.log("🎉 Database seeded successfully!");
 }
 
 main()
