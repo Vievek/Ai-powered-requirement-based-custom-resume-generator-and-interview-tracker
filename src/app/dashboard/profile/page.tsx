@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,11 +30,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { useProfile } from "@/hooks/useProfile";
+import { calculateCompletion } from "@/utils/calculateCompleteion";
+import { useSession } from "next-auth/react";
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("personal");
-  const [isLoading, setIsLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
+  const { profile, setProfile, isLoading } = useProfile();
   const [completionStats, setCompletionStats] = useState({
     personal: 0,
     experience: 0,
@@ -45,105 +47,14 @@ export default function ProfilePage() {
   });
 
   const router = useRouter();
+  const { data: session } = useSession();
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
-    try {
-      setIsLoading(true);
-      // Mock API call - replace with actual API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const mockProfile = {
-        id: "1",
-        personalInfo: {
-          name: "John Doe",
-          email: "john.doe@example.com",
-          phone: "+1 (555) 123-4567",
-          location: "San Francisco, CA",
-          linkedin: "linkedin.com/in/johndoe",
-          website: "johndoe.dev",
-        },
-        experience: [
-          {
-            id: "1",
-            title: "Senior Software Engineer",
-            company: "Tech Corp",
-            startDate: "2022-01",
-            endDate: "Present",
-            description:
-              "Led development of scalable web applications using React and Node.js. Improved system performance by 40%.",
-            current: true,
-          },
-        ],
-        education: [
-          {
-            id: "1",
-            degree: "Bachelor of Computer Science",
-            institution: "University of California, Berkeley",
-            startYear: "2018",
-            endYear: "2022",
-            gpa: "3.8",
-          },
-        ],
-        skills: {
-          technical: ["JavaScript", "React", "Node.js", "Python", "PostgreSQL"],
-          soft: ["Leadership", "Communication", "Problem Solving"],
-        },
-        projects: [
-          {
-            id: "1",
-            name: "E-commerce Platform",
-            description:
-              "Built a full-stack e-commerce platform with React, Node.js, and PostgreSQL",
-            techStack: ["React", "Node.js", "PostgreSQL", "Stripe"],
-            url: "https://github.com/johndoe/ecommerce",
-          },
-        ],
-        certifications: [
-          {
-            id: "1",
-            name: "AWS Solutions Architect",
-            issuer: "Amazon Web Services",
-            date: "2023-06",
-            url: "https://aws.amazon.com/certification/",
-          },
-        ],
-      };
-
-      setProfile(mockProfile);
-      calculateCompletion(mockProfile);
-    } catch (error) {
-      toast.error("Failed to load profile");
-    } finally {
-      setIsLoading(false);
+  // Update completion stats when profile changes
+  React.useEffect(() => {
+    if (profile) {
+      setCompletionStats(calculateCompletion(profile));
     }
-  };
-
-  const calculateCompletion = (profileData: any) => {
-    const personal = profileData.personalInfo
-      ? (Object.values(profileData.personalInfo).filter(Boolean).length / 6) *
-        100
-      : 0;
-
-    const experience = profileData.experience?.length > 0 ? 100 : 0;
-    const education = profileData.education?.length > 0 ? 100 : 0;
-    const skills = (profileData.skills?.technical?.length || 0) > 0 ? 100 : 0;
-    const projects = profileData.projects?.length > 0 ? 100 : 0;
-
-    const overall = (personal + experience + education + skills + projects) / 5;
-
-    setCompletionStats({
-      personal: Math.round(personal),
-      experience: Math.round(experience),
-      education: Math.round(education),
-      skills: Math.round(skills),
-      projects: Math.round(projects),
-      overall: Math.round(overall),
-    });
-  };
+  }, [profile]);
 
   const tabs = [
     {
@@ -188,6 +99,37 @@ export default function ProfilePage() {
     return <ProfileSkeleton />;
   }
 
+  // Save profile to backend
+  const saveProfile = async () => {
+    try {
+      const payload = {
+        userId: session?.user?.id,
+        data: {
+          education: profile?.education,
+          experience: profile?.experience,
+          skills: profile?.skills?.technical,
+          softSkills: profile?.skills?.soft,
+          projects: profile?.projects,
+          certifications: profile?.certifications,
+        },
+      };
+      const res = await fetch("/api/profile/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await res.json();
+      if (result.success) {
+        toast.success("Profile saved! You can now create AI-powered resumes.");
+        router.push("/dashboard");
+      } else {
+        toast.error("Failed to save profile: " + result.error);
+      }
+    } catch (error) {
+      toast.error("Failed to save profile");
+    }
+  };
+
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
       {/* Header */}
@@ -198,7 +140,6 @@ export default function ProfilePage() {
             Build your professional profile to create better resumes
           </p>
         </div>
-
         {/* Completion Badge */}
         <motion.div
           initial={{ scale: 0 }}
@@ -296,7 +237,6 @@ export default function ProfilePage() {
             data={profile?.personalInfo}
             onUpdate={(data) => {
               setProfile({ ...profile, personalInfo: data });
-              calculateCompletion({ ...profile, personalInfo: data });
             }}
             onNext={() => setActiveTab("experience")}
           />
@@ -307,7 +247,6 @@ export default function ProfilePage() {
             data={profile?.experience || []}
             onUpdate={(data) => {
               setProfile({ ...profile, experience: data });
-              calculateCompletion({ ...profile, experience: data });
             }}
             onNext={() => setActiveTab("education")}
             onPrevious={() => setActiveTab("personal")}
@@ -319,7 +258,6 @@ export default function ProfilePage() {
             data={profile?.education || []}
             onUpdate={(data) => {
               setProfile({ ...profile, education: data });
-              calculateCompletion({ ...profile, education: data });
             }}
             onNext={() => setActiveTab("skills")}
             onPrevious={() => setActiveTab("experience")}
@@ -331,7 +269,6 @@ export default function ProfilePage() {
             data={profile?.skills}
             onUpdate={(data) => {
               setProfile({ ...profile, skills: data });
-              calculateCompletion({ ...profile, skills: data });
             }}
             onNext={() => setActiveTab("projects")}
             onPrevious={() => setActiveTab("education")}
@@ -343,15 +280,9 @@ export default function ProfilePage() {
             data={profile?.projects || []}
             onUpdate={(data) => {
               setProfile({ ...profile, projects: data });
-              calculateCompletion({ ...profile, projects: data });
             }}
             onPrevious={() => setActiveTab("skills")}
-            onComplete={() => {
-              toast.success(
-                "Profile completed! You can now create AI-powered resumes."
-              );
-              router.push("/dashboard");
-            }}
+            onComplete={saveProfile}
           />
         </AnimateTabContent>
       </Tabs>
