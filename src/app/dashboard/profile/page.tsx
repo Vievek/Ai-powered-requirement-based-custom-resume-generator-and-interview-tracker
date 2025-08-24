@@ -36,7 +36,8 @@ import { useSession } from "next-auth/react";
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("personal");
-  const { profile, setProfile, isLoading } = useProfile();
+  const { data: session } = useSession();
+  const { profile, setProfile, isLoading } = useProfile(session?.user?.id);
   const [completionStats, setCompletionStats] = useState({
     personal: 0,
     experience: 0,
@@ -47,7 +48,6 @@ export default function ProfilePage() {
   });
 
   const router = useRouter();
-  const { data: session } = useSession();
 
   // Update completion stats when profile changes
   React.useEffect(() => {
